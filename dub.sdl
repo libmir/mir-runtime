@@ -1,0 +1,7 @@
+name "mir-runtime"
+description "Dlang @nogc runtime infrastructure for simple, slim, and fast code."
+authors "Ilya Yaroshenko"
+copyright "Copyright © 2018, Ilya Yaroshenko, Copyright © 2018, Symmetry Investments & Kaleidic Associates"
+license "BSL-1.0"
+dependency "mir-core" version="~>0.0.0"
+dflags "-dip25" "-dip1000" "-dip1008"
