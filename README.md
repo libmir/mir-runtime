@@ -4,9 +4,8 @@ Dlang @nogc runtime infrastructure for simple, slim, and fast code.
 
 ### Requirements
 
-DMD FE: `>=2.82.0`
-
-D flags: `-dip25` `-dip1000` `-dip1008`
+ - DMD FE: `>=2.82.0`
+ - D flags: `-dip25` `-dip1000` `-dip1008`
 
 ### Links
 
