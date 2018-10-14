@@ -41,16 +41,22 @@ size_t printHexadecimalGen(T, C)(T c, ref C[T.sizeof * 2] buf, bool upper) @trus
     return ret;
 }
 
+                      size_t printHexAddress(ubyte c, ref char[2] buf, bool upper) { return printHexAddressGen!(ubyte, char)(c, buf, upper); }
+                      size_t printHexAddress(ushort c, ref char[4] buf, bool upper) { return printHexAddressGen!(ushort, char)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(uint c, ref char[8] buf, bool upper) { return printHexAddressGen!(uint, char)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(ulong c, ref char[16] buf, bool upper) { return printHexAddressGen!(ulong, char)(c, buf, upper); }
 static if (is(ucent))
 pragma(inline, false) size_t printHexAddress(ucent c, ref char[32] buf, bool upper) { return printHexAddressGen!(ucent, char)(c, buf, upper); }
 
+                      size_t printHexAddress(ubyte c, ref wchar[2] buf, bool upper) { return printHexAddressGen!(ubyte, wchar)(c, buf, upper); }
+                      size_t printHexAddress(ushort c, ref wchar[4] buf, bool upper) { return printHexAddressGen!(ushort, wchar)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(uint c, ref wchar[8] buf, bool upper) { return printHexAddressGen!(uint, wchar)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(ulong c, ref wchar[16] buf, bool upper) { return printHexAddressGen!(ulong, wchar)(c, buf, upper); }
 static if (is(ucent))
 pragma(inline, false) size_t printHexAddress(ucent c, ref wchar[32] buf, bool upper) { return printHexAddressGen!(ucent, wchar)(c, buf, upper); }
 
+                      size_t printHexAddress(ubyte c, ref dchar[2] buf, bool upper) { return printHexAddressGen!(ubyte, dchar)(c, buf, upper); }
+                      size_t printHexAddress(ushort c, ref dchar[4] buf, bool upper) { return printHexAddressGen!(ushort, dchar)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(uint c, ref dchar[8] buf, bool upper) { return printHexAddressGen!(uint, dchar)(c, buf, upper); }
 pragma(inline, false) size_t printHexAddress(ulong c, ref dchar[16] buf, bool upper) { return printHexAddressGen!(ulong, dchar)(c, buf, upper); }
 static if (is(ucent))
