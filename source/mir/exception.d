@@ -23,12 +23,12 @@ unittest
         /// scope messages are copied
         try throw new MirException(msg);
         catch(Exception e) assert(e.msg == msg);
-    
+
         /// immutable strings are not copied
         static immutable char[] gmsg = "global msg";
         try throw new MirException(gmsg);
         catch(Exception e) assert(e.msg is gmsg);
-    
+
         return __ctfe;
     }
 

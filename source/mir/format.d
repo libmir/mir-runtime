@@ -98,6 +98,13 @@ struct HexAddress(T)
 }
 
 ///
+pragma(inline, false)
+ref W printEscaped(C : char, W)(scope return ref W w, scope const(char) c)
+{
+    return w;
+}
+
+///
 ref W print(C = char, W, T)(scope return ref W w, const T c)
     if (is(T == enum))
 {
