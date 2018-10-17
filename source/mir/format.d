@@ -1,5 +1,8 @@
 module mir.format;
 
+import std.traits;
+
+import mir.format_impl;
 
 // 16-bytes
 /// C's compatible format specifier.
@@ -97,11 +100,77 @@ struct HexAddress(T)
     }
 }
 
-///
+/++
+Note: Non-ASCII Unicode characters are encoded as sequence of \xXX bytes. This may be fixed in the future.
++/
 pragma(inline, false)
-ref W printEscaped(C : char, W)(scope return ref W w, scope const(char) c)
+ref W printEscaped(C = char, W)(scope return ref W w, scope const(char)[] str)
 {
+    // TODO: replace with Mir implementation.
+    import std.uni: isGraphical;
+    w.put('\"');
+    foreach (char c; str[])
+    {
+        if (c >= 0x20)
+        {
+            if (c < 0x7F)
+            {
+                if (c == '\"' || c == '\\')
+                {
+                L:
+                    w.put('\\');
+                }
+                w.put(c);
+            }
+            else
+            {
+            M:
+                printStaticStringInternal!(C, "\\x")(w);
+                print!C(w, HexAddress!ubyte(cast(ubyte)c));
+            }
+        }
+        else
+        {
+            switch(c)
+            {
+                case '\n': c = 'n'; goto L;
+                case '\r': c = 'r'; goto L;
+                case '\t': c = 't'; goto L;
+                case '\a': c = 'a'; goto L;
+                case '\b': c = 'b'; goto L;
+                case '\f': c = 'f'; goto L;
+                case '\v': c = 'v'; goto L;
+                case '\0': c = '0'; goto L;
+                default: goto M;
+            }
+        }
+    }
+    w.put('\"');
     return w;
+}
+
+///
+// @safe pure nothrow @nogc
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    assert(w.printEscaped("Hi\t" ~ `"@nogc"`).data == `"Hi\t\"@nogc\""`, w.data.idup);
+    w.reset;
+    assert(w.printEscaped("\xF3").data == `"\xF3"`, w.data);
+}
+
+///
+ref W printElement(C = char, W, T)(scope return ref W w, scope auto ref const T c)
+{
+    static if (isSomeString!T)
+    {
+        return printEscaped!C(w, c);
+    }
+    else
+    {
+        return print!C(w, c);
+    }
 }
 
 ///
@@ -132,25 +201,44 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
 }
 
 ///
-ref W print(C = char, W)(scope return ref W w, bool b)
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+}
+
+/// ditto
+ref W print(C = char, W)(scope return ref W w, bool c)
 {
     enum N = 5;
     static if(isFastBuffer!W)
     {
-        w.advance(printBoolean(value, w.getBuffer(N).getStaticBuf!N));
+        w.advance(printBoolean(c, w.getBuffer(N).getStaticBuf!N));
     }
     else
     {
         C[N] buf = void;
-        auto n = printBoolean(value, buf);
+        auto n = printBoolean(c, buf);
         w.put(buf[0 .. n]);
     }
+    return w;
 }
 
 ///
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    assert(w.print(true).data == `true`, w.data);
+    w.reset;
+    assert(w.print(false).data == `false`, w.data);
+}
+
+/// ditto
 pragma(inline, false)
-ref W print(C, W, V, K)(scope return ref W w, scope const V[K] c)
-    if (!isSomeChar!T)
+ref W print(C = char, W, V, K)(scope return ref W w, scope const V[K] c)
 {
     enum C left = '[';
     enum C right = ']';
@@ -161,19 +249,29 @@ ref W print(C, W, V, K)(scope return ref W w, scope const V[K] c)
     foreach (ref key, ref value; c)
     {
         if (!first)
-        {
-            print!(C, sep)(w);
-            first = false;
-        }
-        print!C(w, key);
-        print!C(w, value);
+            printStaticStringInternal!(C, sep)(w);
+        first = false;
+        printElement!C(w, key);
+        printStaticStringInternal!(C, mid)(w);
+        printElement!C(w, value);
     }
     w.put(right);
+    return w;
 }
 
 ///
+@safe pure
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    w.print(["a": 1, "b": 2]);
+    assert(w.data == `["a": 1, "b": 2]` || w.data == `["b": 2, "a": 1]`, w.data);
+}
+
+/// ditto
 pragma(inline, false)
-ref W print(C, W, T)(scope return ref W w, scope const(T)[] c)
+ref W print(C = char, W, T)(scope return ref W w, scope const(T)[] c)
     if (!isSomeChar!T)
 {
     enum C left = '[';
@@ -184,56 +282,88 @@ ref W print(C, W, T)(scope return ref W w, scope const(T)[] c)
     foreach (ref e; c)
     {
         if (!first)
-        {
-            print!(C, sep)(w);
-            first = false;
-        }
-        print!C(w, e);
+            printStaticStringInternal!(C, sep)(w);
+        first = false;
+        printElement!C(w, e);
     }
     w.put(right);
+    return w;
 }
 
 ///
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    string[2] array = ["a\ta", "b"];
+    assert(w.print(array[]).data == `["a\ta", "b"]`, w.data);
+}
+
+/// ditto
+pragma(inline, false)
 ref W print(C = char, W)(scope return ref W w, char c)
 {
     w.put('\'');
-    switch(c)
+    if (c >= 0x20)
     {
-        case '\n': c = 'n'; goto case '\\';
-        case '\r': c = 'r'; goto case '\\';
-        case '\t': c = 't'; goto case '\\';
-        case '\a': c = 'a'; goto case '\\';
-        case '\b': c = 'b'; goto case '\\';
-        case '\f': c = 'f'; goto case '\\';
-        case '\v': c = 'v'; goto case '\\';
-        case '\0': c = '0'; goto case '\\';
-        case '\'': c = '\''; goto case '\\';
-        case '\\': w.put('\\'); goto default;
-        default:
-            if ('!' <= c && c <= '~')
+        if (c < 0x7F)
+        {
+            if (c == '\'' || c == '\\')
             {
-                w.put(c);
+            L:
+                w.put('\\');
             }
-            else
-            {
-                print!(C, "\\x")(w);
-                print!C(w, HexAddress!ubyte(cast(ubyte)c));
-            }
+            w.put(c);
+        }
+        else
+        {
+        M:
+            printStaticStringInternal!(C, "\\x")(w);
+            print!C(w, HexAddress!ubyte(cast(ubyte)c));
+        }
     }
-    if ('!' <= c && c <= '~')
+    else
     {
-        w.put(c);
+        switch(c)
+        {
+            case '\n': c = 'n'; goto L;
+            case '\r': c = 'r'; goto L;
+            case '\t': c = 't'; goto L;
+            case '\a': c = 'a'; goto L;
+            case '\b': c = 'b'; goto L;
+            case '\f': c = 'f'; goto L;
+            case '\v': c = 'v'; goto L;
+            case '\0': c = '0'; goto L;
+            default: goto M;
+        }
     }
     w.put('\'');
+    return w;
 }
 
 ///
-ref W print(C, W)(scope return ref W w, scope const(C)[] c)
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    assert(w
+        .print('\n')
+        .print('\'')
+        .print('a')
+        .print('\xF4')
+        .data == `'\n''\'''a''\xF4'`);
+}
+
+/// ditto
+ref W print(C : char, W)(scope return ref W w, scope const(C)[] c)
 {
     w.put(c);
+    return w;
 }
 
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, uint c)
 {
     enum N = 10;
@@ -247,9 +377,10 @@ ref W print(C = char, W)(scope return ref W w, uint c)
         auto n = printUnsigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, int c)
 {
     enum N = 11;
@@ -263,9 +394,10 @@ ref W print(C = char, W)(scope return ref W w, int c)
         auto n = printSigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, ulong c)
 {
     enum N = 20;
@@ -279,9 +411,10 @@ ref W print(C = char, W)(scope return ref W w, ulong c)
         auto n = printUnsigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, long c)
 {
     enum N = 21;
@@ -295,10 +428,11 @@ ref W print(C = char, W)(scope return ref W w, long c)
         auto n = printSigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
 static if (is(ucent))
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, ucent c)
 {
     enum N = 39;
@@ -312,10 +446,11 @@ ref W print(C = char, W)(scope return ref W w, ucent c)
         auto n = printUnsigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
 static if (is(cent))
-///
+/// ditto
 ref W print(C = char, W)(scope return ref W w, cent c)
 {
     enum N = 40;
@@ -329,9 +464,10 @@ ref W print(C = char, W)(scope return ref W w, cent c)
         auto n = printSigned(c, buf);
         w.put(buf[0 ..  n]);
     }
+    return w;
 }
 
-///
+/// ditto
 ref W print(C = char, W, T)(scope return ref W w, const T c)
     if(is(T == float) || is(T == double) || is(T == real))
 {
@@ -339,7 +475,7 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
     return print!C(w, ff);
 }
 
-///
+/// ditto
 pragma(inline, false)
 ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
     if (is(T == struct) || is(T == union))
@@ -401,10 +537,10 @@ pragma(inline, false)
 ref W print(C = char, W, T)(scope return ref W w, scope const T c)
     if (is(T == struct) || is(T == union))
 {
-    return print(C, W, T)(w, c);
+    return print!(C, W, T)(w, c);
 }
 
-///
+/// ditto
 pragma(inline, false)
 ref W print(C = char, W, T)(scope return ref W w, scope const T c)
     if (is(T == class) || is(T == interface))
@@ -465,13 +601,12 @@ private template hasIterableLightConst(T)
     }
 }
 
-///
-ref W print(C, C[] c, W, T, size_t N)(scope return ref W w)
+private ref W printStaticStringInternal(C, immutable(C)[] c, W)(scope return ref W w)
     if (C.sizeof * c.length <= 512)
 {
     static if (isFastBuffer!W)
     {
-        printStaticString!str(w.getBuffer(c.length).getStaticBuf!(c.length));
+        printStaticString!c(w.getBuffer(c.length).getStaticBuf!(c.length));
         w.advance(c.length);
     }
     else
@@ -482,8 +617,9 @@ ref W print(C, C[] c, W, T, size_t N)(scope return ref W w)
     }
     else
     {
-        w.put(str[]);
+        w.put(c[]);
     }
+    return w;
 }
 
 private @trusted ref C[N] getStaticBuf(size_t N, C)(scope return ref C[] buf)
@@ -497,139 +633,6 @@ template isFastBuffer(W)
     enum isFastBuffer = __traits(hasMember, W, "getBuffer") && __traits(hasMember, W, "advance");
 }
 
-@safe pure @nogc:
-
-/// Print Kernel
-size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref char[512] buf);
-/// ditto
-size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref char[512] buf);
-/// ditto
-size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref char[512] buf);
-
-/// ditto
-size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref wchar[512] buf);
-/// ditto
-size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref wchar[512] buf);
-/// ditto
-size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref wchar[512] buf);
-
-/// ditto
-size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref dchar[512] buf);
-/// ditto
-size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref dchar[512] buf);
-/// ditto
-size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref dchar[512] buf);
-
-nothrow:
-
-/// ditto
-size_t printUnsigned(uint c, scope ref char[10] buf);
-/// ditto
-size_t printUnsigned(ulong c, scope ref char[20] buf);
-static if (is(ucent))
-/// ditto
-size_t printUnsigned(ucent c, scope ref char[39] buf);
-
-/// ditto
-size_t printUnsigned(uint c, scope ref wchar[10] buf);
-/// ditto
-size_t printUnsigned(ulong c, scope ref wchar[20] buf);
-static if (is(ucent))
-/// ditto
-size_t printUnsigned(ucent c, scope ref wchar[39] buf);
-
-/// ditto
-size_t printUnsigned(uint c, scope ref dchar[10] buf);
-/// ditto
-size_t printUnsigned(ulong c, scope ref dchar[20] buf);
-static if (is(ucent))
-/// ditto
-size_t printUnsigned(ucent c, scope ref dchar[39] buf);
-
-/// ditto
-size_t printSigned(uint c, scope ref char[10 + 1] buf, char sign = '\0');
-/// ditto
-size_t printSigned(ulong c, scope ref char[20 + 1] buf, char sign = '\0');
-static if (is(cent))
-/// ditto
-size_t printSigned(cent c, scope ref char[39 + 1] buf, char sign = '\0');
-
-/// ditto
-size_t printSigned(uint c, scope ref wchar[10 + 1] buf, wchar sign = '\0');
-/// ditto
-size_t printSigned(ulong c, scope ref wchar[20 + 1] buf, wchar sign = '\0');
-static if (is(cent))
-/// ditto
-size_t printSigned(cent c, scope ref wchar[39 + 1] buf, wchar sign = '\0');
-
-/// ditto
-size_t printSigned(uint c, scope ref dchar[10 + 1] buf, dchar sign = '\0');
-/// ditto
-size_t printSigned(ulong c, scope ref dchar[20 + 1] buf, dchar sign = '\0');
-static if (is(cent))
-/// ditto
-size_t printSigned(cent c, scope ref dchar[39 + 1] buf, dchar sign = '\0');
-
-/// ditto
-size_t printHexadecimal(uint c, ref char[8] buf, bool upper = true);
-/// ditto
-size_t printHexadecimal(ulong c, ref char[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexadecimal(ucent c, ref char[32] buf, bool upper = true);
-
-/// ditto
-size_t printHexadecimal(uint c, ref wchar[8] buf, bool upper = true);
-/// ditto
-size_t printHexadecimal(ulong c, ref wchar[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexadecimal(ucent c, ref wchar[32] buf, bool upper = true);
-
-/// ditto
-size_t printHexadecimal(uint c, ref dchar[8] buf, bool upper = true);
-/// ditto
-size_t printHexadecimal(ulong c, ref dchar[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexadecimal(ucent c, ref dchar[32] buf, bool upper = true);
-
-/// ditto
-size_t printHexAddress(ubyte c, ref char[2] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ushort c, ref char[4] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(uint c, ref char[8] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ulong c, ref char[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexAddress(ucent c, ref char[32] buf, bool upper = true);
-
-/// ditto
-size_t printHexAddress(ubyte c, ref wchar[2] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ushort c, ref wchar[4] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(uint c, ref wchar[8] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ulong c, ref wchar[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexAddress(ucent c, ref wchar[32] buf, bool upper = true);
-
-/// ditto
-size_t printHexAddress(ubyte c, ref dchar[2] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ushort c, ref dchar[4] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(uint c, ref dchar[8] buf, bool upper = true);
-/// ditto
-size_t printHexAddress(ulong c, ref dchar[16] buf, bool upper = true);
-static if (is(ucent))
-/// ditto
-size_t printHexAddress(ucent c, ref dchar[32] buf, bool upper = true);
-
 /// ditto
 size_t printBoolean(C)(bool c, ref C[5] buf)
     if(is(C == char) || is(C == wchar) || is(C == dchar))
@@ -637,20 +640,20 @@ size_t printBoolean(C)(bool c, ref C[5] buf)
     version(LDC) pragma(inline, true);
     if (c)
     {
+        buf[0] = 't';
+        buf[1] = 'r';
+        buf[2] = 'u';
+        buf[3] = 'e';
+        return 4;
+    }
+    else
+    {
         buf[0] = 'f';
         buf[1] = 'a';
         buf[2] = 'l';
         buf[3] = 's';
         buf[4] = 'e';
         return 5;
-    }
-    else
-    {
-        buf[0] = 't';
-        buf[1] = 'r';
-        buf[2] = 'u';
-        buf[3] = 'e';
-        return 4;
     }
 }
 

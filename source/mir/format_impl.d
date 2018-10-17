@@ -5,6 +5,157 @@ import mir.format;
 
 @safe pure @nogc:
 
+
+size_t printFloatingPointExtend(T, C)(T c, scope ref const FormatSpec spec, scope ref C[512] buf) @trusted
+{
+    char[512] cbuf = void;
+    return extendASCII(cbuf.ptr, buf.ptr, printFloatingPoint(cast(double)c, spec, cbuf));
+}
+
+size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref char[512] buf)
+    if(is(T == float) || is(T == double) || is(T == real))
+{
+    import mir.math.common: copysign, fabs;
+    bool neg = copysign(1, c) < 0;
+    c = fabs(c);
+    char specFormat = spec.format;
+    version (CRuntime_Microsoft)
+    {
+        if (c != c || c.fabs == c.infinity)
+        {
+            size_t i;
+            char s = void;
+            if (copysign(1, c) < 0)
+                s = '-';
+            else
+            if (spec.plus)
+                s = '+';
+            else
+            if (spec.space)
+                s = ' ';
+            else
+                goto S;
+            buf[0] = s;
+            i = 1;
+        S:
+            static immutable char[3][2][2] special = [["inf", "INF"], ["nan", "NAN"]];
+            auto p = &special[c != c][(specFormat & 0xDF) == specFormat][0];
+            buf[i + 0] = p[0];
+            buf[i + 1] = p[1];
+            buf[i + 2] = p[2];
+            return i + 3;
+        }
+    }
+    alias T = double;
+    static if (is(T == real))
+        align(4) char[12] fmt = "%%%%%%*.*gL\0";
+    else
+        align(4) char[12] fmt = "%%%%%%*.*g\0\0";
+
+    if (specFormat && specFormat != 's' && specFormat != 'g' && specFormat != 'G')
+    {
+        if (specFormat != 'e' && specFormat != 'E' && specFormat != 'f' && specFormat != 'F' && specFormat != 'a' && specFormat != 'A')
+        {
+            static immutable wrongFS = new Error("Wrong floating point format specifier.");
+            throw wrongFS;
+        }
+        fmt[9] = specFormat;
+    }
+    uint fmtRevLen = 5;
+    if (spec.hash) fmt[fmtRevLen--] = '#';
+    if (spec.space) fmt[fmtRevLen--] = ' ';
+    if (spec.zero) fmt[fmtRevLen--] = '0';
+    if (spec.plus) fmt[fmtRevLen--] = '+';
+    if (spec.dash) fmt[fmtRevLen--] = '-';
+
+    static immutable snprintfError = new Exception("snprintf failed to print a floating point number");
+                import core.stdc.stdio : snprintf;
+    ptrdiff_t res = assumePureSafe(&snprintf)((()@trusted =>buf.ptr)(), buf.length - 1, &fmt[fmtRevLen], spec.width, spec.precision, c);
+    if (res < 0)
+        throw snprintfError;
+    import mir.utility: min;
+    return min(cast(size_t)res, buf.length - 1);
+}
+
+auto assumePureSafe(T)(T t) @trusted
+    // if (isFunctionPointer!T || isDelegate!T)
+{
+    import std.traits;
+    enum attrs = (functionAttributes!T | FunctionAttribute.pure_ | FunctionAttribute.safe) & ~FunctionAttribute.system;
+    return cast(SetFunctionAttributes!(T, functionLinkage!T, attrs)) t;
+}
+
+////////// FLOATING POINT //////////
+
+pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref char[512] buf)
+{
+    return printFloatingPoint(cast(double)c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref char[512] buf)
+{
+    return printFloatingPointGen(c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref char[512] buf)
+{
+    version (CRuntime_Microsoft)
+    {
+        return printFloatingPoint(cast(double) c, spec, buf);
+    }
+    else
+    {
+        pragma(inline, false);
+        return printFloatingPointGen(c, spec, buf);
+    }
+}
+
+pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
+{
+    return printFloatingPoint(cast(double)c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
+{
+    return printFloatingPointExtend(c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
+{
+    version (CRuntime_Microsoft)
+    {
+        return printFloatingPoint(cast(double) c, spec, buf);
+    }
+    else
+    {
+        return printFloatingPointExtend(c, spec, buf);
+    }
+}
+
+pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
+{
+    return printFloatingPoint(cast(double)c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
+{
+    return printFloatingPointExtend(c, spec, buf);
+}
+
+pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
+{
+    version (CRuntime_Microsoft)
+    {
+        return printFloatingPoint(cast(double) c, spec, buf);
+    }
+    else
+    {
+        return printFloatingPointExtend(c, spec, buf);
+    }
+}
+
+nothrow:
+
 pragma(inline, false) size_t printHexadecimal(uint c, ref char[8] buf, bool upper) { return printHexadecimalGen!(uint, char)(c, buf, upper); }
 pragma(inline, false) size_t printHexadecimal(ulong c, ref char[16] buf, bool upper) { return printHexadecimalGen!(ulong, char)(c, buf, upper); }
 static if (is(ucent))
@@ -84,20 +235,20 @@ size_t printHexAddressGen(T, C)(T c, ref C[T.sizeof * 2] buf, bool upper)
 static immutable hexStringUpper = "0123456789ABCDEF";
 static immutable hexStringLower = "0123456789abcdef";
 
-pragma(inline, false) size_t printSigned(int c, scope ref char[11] buf, char sign) { return printSignedGen(c, buf, sign); }
-pragma(inline, false) size_t printSigned(long c, scope ref char[21] buf, char sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(int c, scope ref char[11] buf, char sign = '\0') { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(long c, scope ref char[21] buf, char sign = '\0') { return printSignedGen(c, buf, sign); }
 static if (is(cent))
-pragma(inline, false) size_t printSigned(cent c, scope ref char[40] buf, char sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(cent c, scope ref char[40] buf, char sign = '\0') { return printSignedGen(c, buf, sign); }
 
-pragma(inline, false) size_t printSigned(int c, scope ref wchar[11] buf, wchar sign) { return printSignedGen(c, buf, sign); }
-pragma(inline, false) size_t printSigned(long c, scope ref wchar[21] buf, wchar sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(int c, scope ref wchar[11] buf, wchar sign = '\0') { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(long c, scope ref wchar[21] buf, wchar sign = '\0') { return printSignedGen(c, buf, sign); }
 static if (is(cent))
-pragma(inline, false) size_t printSigned(cent c, scope ref wchar[40] buf, wchar sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(cent c, scope ref wchar[40] buf, wchar sign = '\0') { return printSignedGen(c, buf, sign); }
 
-pragma(inline, false) size_t printSigned(int c, scope ref dchar[11] buf, dchar sign) { return printSignedGen(c, buf, sign); }
-pragma(inline, false) size_t printSigned(long c, scope ref dchar[21] buf, dchar sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(int c, scope ref dchar[11] buf, dchar sign = '\0') { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(long c, scope ref dchar[21] buf, dchar sign = '\0') { return printSignedGen(c, buf, sign); }
 static if (is(cent))
-pragma(inline, false) size_t printSigned(cent c, scope ref dchar[40] buf, dchar sign) { return printSignedGen(c, buf, sign); }
+pragma(inline, false) size_t printSigned(cent c, scope ref dchar[40] buf, dchar sign = '\0') { return printSignedGen(c, buf, sign); }
 
 size_t printSignedGen(T, C, size_t N)(T c, scope ref C[N] buf, C sign)
 {
@@ -176,75 +327,6 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     return buf.length;
 }
 
-////////// FLOATING POINT //////////
-
-pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref char[512] buf)
-{
-    return printFloatingPoint(cast(double)c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref char[512] buf)
-{
-    return printFloatingPointGen(c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref char[512] buf)
-{
-    version (CRuntime_Microsoft)
-    {
-        return printFloatingPoint(cast(double) c, spec, buf);
-    }
-    else
-    {
-        pragma(inline, false);
-        return printFloatingPointGen(c, spec, buf);
-    }
-}
-
-pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
-{
-    return printFloatingPoint(cast(double)c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
-{
-    return printFloatingPointExtend(c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref wchar[512] buf)
-{
-    version (CRuntime_Microsoft)
-    {
-        return printFloatingPoint(cast(double) c, spec, buf);
-    }
-    else
-    {
-        return printFloatingPointExtend(c, spec, buf);
-    }
-}
-
-pragma(inline, false) size_t printFloatingPoint(float c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
-{
-    return printFloatingPoint(cast(double)c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(double c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
-{
-    return printFloatingPointExtend(c, spec, buf);
-}
-
-pragma(inline, false) size_t printFloatingPoint(real c, scope ref const FormatSpec spec, scope ref dchar[512] buf)
-{
-    version (CRuntime_Microsoft)
-    {
-        return printFloatingPoint(cast(double) c, spec, buf);
-    }
-    else
-    {
-        return printFloatingPointExtend(c, spec, buf);
-    }
-}
-
 nothrow @trusted
 pragma(inline, false) size_t extendASCII(char* from, wchar* to, size_t n)
 {
@@ -259,83 +341,4 @@ pragma(inline, false) size_t extendASCII(char* from, dchar* to, size_t n)
     foreach (i; 0 .. n)
         to[i] = from[i];
     return n;
-}
-
-size_t printFloatingPointExtend(T, C)(T c, scope ref const FormatSpec spec, scope ref C[512] buf) @trusted
-{
-    char[512] cbuf = void;
-    return extendASCII(cbuf.ptr, buf.ptr, printFloatingPoint(cast(double)c, spec, cbuf));
-}
-
-size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref char[512] buf)
-    if(is(T == float) || is(T == double) || is(T == real))
-{
-    import mir.math.common: copysign, fabs;
-    bool neg = copysign(1, c) < 0;
-    c = fabs(c);
-    char specFormat = spec.format;
-    version (CRuntime_Microsoft)
-    {
-        if (c != c || c.fabs == c.infinity)
-        {
-            size_t i;
-            char s = void;
-            if (copysign(1, c) < 0)
-                s = '-';
-            else
-            if (spec.plus)
-                s = '+';
-            else
-            if (spec.space)
-                s = ' ';
-            else
-                goto S;
-            buf[0] = s;
-            i = 1;
-        S:
-            static immutable char[3][2][2] special = [["inf", "INF"], ["nan", "NAN"]];
-            auto p = &special[c != c][(specFormat & 0xDF) == specFormat][0];
-            buf[i + 0] = p[0];
-            buf[i + 1] = p[1];
-            buf[i + 2] = p[2];
-            return i + 3;
-        }
-    }
-    alias T = double;
-    static if (is(T == real))
-        align(4) char[12] fmt = "%%%%%%*.*gL\0";
-    else
-        align(4) char[12] fmt = "%%%%%%*.*g\0\0";
-
-    if (specFormat && specFormat != 's' && specFormat != 'g' && specFormat != 'G')
-    {
-        if (specFormat != 'e' && specFormat != 'E' && specFormat != 'f' && specFormat != 'F' && specFormat != 'a' && specFormat != 'A')
-        {
-            static immutable wrongFS = new Error("Wrong floating point format specifier.");
-            throw wrongFS;
-        }
-        fmt[9] = specFormat;
-    }
-    uint fmtRevLen = 5;
-    if (spec.hash) fmt[fmtRevLen--] = '#';
-    if (spec.space) fmt[fmtRevLen--] = ' ';
-    if (spec.zero) fmt[fmtRevLen--] = '0';
-    if (spec.plus) fmt[fmtRevLen--] = '+';
-    if (spec.dash) fmt[fmtRevLen--] = '-';
-
-    static immutable snprintfError = new Exception("snprintf failed to print a floating point number");
-                import core.stdc.stdio : snprintf;
-    ptrdiff_t res = assumePureSafe(&snprintf)((()@trusted =>buf.ptr)(), buf.length - 1, &fmt[fmtRevLen], spec.width, spec.precision, c);
-    if (res < 0)
-        throw snprintfError;
-    import mir.utility: min;
-    return min(cast(size_t)res, buf.length - 1);
-}
-
-auto assumePureSafe(T)(T t) @trusted
-    // if (isFunctionPointer!T || isDelegate!T)
-{
-    import std.traits;
-    enum attrs = (functionAttributes!T | FunctionAttribute.pure_ | FunctionAttribute.safe) & ~FunctionAttribute.system;
-    return cast(SetFunctionAttributes!(T, functionLinkage!T, attrs)) t;
 }
