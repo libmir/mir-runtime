@@ -1,8 +1,88 @@
+/++
++/
 module mir.format;
 
 import std.traits;
 
 import mir.format_impl;
+
+@safe:
+
+///
+struct GetData {}
+
+///
+enum getData = GetData();
+
+/++
++/
+struct _stringBuf(C)
+{
+    import mir.appender: ScopedBuffer;
+
+    ///
+    ScopedBuffer!C buffer;
+
+    ///
+    alias buffer this;
+
+    ///
+    mixin StreamFormatOp!C;
+}
+
+///ditto
+alias stringBuf = _stringBuf!char;
+///ditto
+alias wstringBuf = _stringBuf!wchar;
+///ditto
+alias dstringBuf = _stringBuf!dchar;
+
+/++
++/
+mixin template StreamFormatOp(C)
+{
+    ///
+    ref typeof(this) opBinary(string op : "<<", T)(scope auto ref const T c) scope @safe
+    {
+        return print!C(this, c);
+    }
+
+    /// ditto
+    const(C)[] opBinary(string op : "<<", T : GetData)(const T c) scope
+    {
+        return buffer.data;
+    }
+}
+
+///
+@safe pure nothrow @nogc
+unittest
+{
+    auto name = "D";
+    auto ver = 2;
+    auto str = stringBuf() << "Hi " << name << ver << "!\n" << getData;
+    assert(str == "Hi D2!\n");
+}
+
+///
+@safe pure nothrow @nogc
+unittest
+{
+    auto name = "D"w;
+    auto ver = 2;
+    auto str = wstringBuf() << "Hi "w << name << ver << "!\n"w << getData;
+    assert(str == "Hi D2!\n"w);
+}
+
+///
+@safe pure nothrow @nogc
+unittest
+{
+    auto name = "D"d;
+    auto ver = 2;
+    auto str = dstringBuf() << "Hi "d  << name << ver << "!\n"d << getData;
+    assert(str == "Hi D2!\n");
+}
 
 // 16-bytes
 /// C's compatible format specifier.
@@ -55,12 +135,12 @@ struct FormattedFloating(T)
     {
         static if (isFastBuffer!W)
         {
-            w.advance(printFloatingPoint(value, w.getBuffer(512).getStaticBuf!512), spec);
+            w.advance(printFloatingPoint(value, spec, w.getBuffer(512).getStaticBuf!512));
         }
         else
         {
             C[512] buf = void;
-            auto n = printFloatingPoint(value, buf, spec);
+            auto n = printFloatingPoint(value, spec, buf);
             w.put(buf[0 ..  n]);
         }
     }
@@ -357,7 +437,8 @@ unittest
 }
 
 /// ditto
-ref W print(C : char, W)(scope return ref W w, scope const(C)[] c)
+ref W print(C = char, W)(scope return ref W w, scope const(C)[] c)
+    if (isSomeChar!C)
 {
     w.put(c);
     return w;

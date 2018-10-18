@@ -17,6 +17,16 @@ class MirException : Exception
 @safe pure nothrow @nogc
 unittest
 {
+    import mir.exception;
+    import mir.format;
+    try throw new MirException(stringBuf() << "Hi D" << 2 << "!" << getData);
+    catch(Exception e) assert(e.msg == "Hi D2!");
+}
+
+///
+@safe pure nothrow @nogc
+unittest
+{
     @safe pure nothrow @nogc 
     bool func(scope const(char)[] msg)
     {

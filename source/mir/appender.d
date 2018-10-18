@@ -20,7 +20,7 @@ private extern(C) @system nothrow @nogc pure void* memcpy(scope void* s1, scope 
 struct ScopedBuffer(T, size_t bytes = 4096)
     if (bytes)
 {
-    import std.traits: isIterable, hasElaborateAssign, isAssignable;
+    import std.traits: isIterable, hasElaborateAssign, isAssignable, isArray;
     import mir.primitives: hasLength;
     import std.backdoor: emplaceRef;
 
@@ -29,12 +29,12 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     private size_t _currentLength;
     private align(T.alignof) ubyte[_bufferLength * T.sizeof] _scopeBufferPayload = void;
 
-    private ref scope T[_bufferLength] _scopeBuffer() @trusted
+    private ref T[_bufferLength] _scopeBuffer() @trusted scope
     {
         return *cast(T[_bufferLength]*)&_scopeBufferPayload;
     }
 
-    private scope T[] prepare(size_t n) @trusted
+    private T[] prepare(size_t n) @trusted scope
     {
         import mir.internal.memory: realloc;
         _currentLength += n;
@@ -80,8 +80,24 @@ struct ScopedBuffer(T, size_t bytes = 4096)
         emplaceRef(d[cl], e);
     }
 
+    static if (!hasElaborateAssign!T && isAssignable!(T, const T))
+    void put(scope const(T)[] e) scope
+    {
+        auto cl = _currentLength;
+        auto d = prepare(e.length);
+        (()@trusted=>memcpy(d.ptr + cl, e.ptr, e.length * T.sizeof))();
+    }
+
+    static if (!hasElaborateAssign!T && !isAssignable!(T, const T))
+    void put()(scope T[] e) scope
+    {
+        auto cl = _currentLength;
+        auto d = prepare(e.length);
+        (()@trusted=>memcpy(d.ptr + cl, e.ptr, e.length * T.sizeof))();
+    }
+
     void put(Iterable)(Iterable range) scope
-        if (isIterable!Iterable)
+        if (isIterable!Iterable && !isArray!Iterable)
     {
         static if (hasLength!Iterable)
         {
@@ -106,14 +122,14 @@ struct ScopedBuffer(T, size_t bytes = 4096)
         }
     }
 
-    void reset()
+    void reset() scope nothrow
     {
         this.__dtor;
         _currentLength = 0;
         _buffer = null;
     }
 
-    scope T[] data() @property @safe
+    T[] data() @property @safe scope
     {
         return _buffer.length > _bufferLength ? _buffer[0 .. _currentLength] : _scopeBuffer[0 .. _currentLength];
     }
@@ -127,38 +143,3 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     buf.put("str");
     assert(buf.data == "cstr");
 }
-
-///
-struct strbuf
-{
-    ///
-    ScopedBuffer!char buffer;
-    ///
-    // alias buffer this;
-
-    ///
-    alias opBinary(string op : "<<") = print;
-
-@safe pure @nogc:
-
-    ///
-    ref typeof(this) print(char c) scope return
-    {
-        buffer.put(c);
-        return this;
-    }
-
-    ///
-    ref typeof(this) print(scope const(char)[] c) scope return
-    {
-        buffer.put(c);
-        return this;
-    }
-
-    ///
-    ref typeof(this) print(bool c) scope return
-    {
-        return print(c ? "true" : "false");
-    }
-}
-
