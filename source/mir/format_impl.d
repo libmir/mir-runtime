@@ -12,7 +12,7 @@ size_t printFloatingPointExtend(T, C)(T c, scope ref const FormatSpec spec, scop
     return extendASCII(cbuf.ptr, buf.ptr, printFloatingPoint(cast(double)c, spec, cbuf));
 }
 
-size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref char[512] buf)
+size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref char[512] buf) @trusted
     if(is(T == float) || is(T == double) || is(T == real))
 {
     import mir.math.common: copysign, fabs;
@@ -180,7 +180,7 @@ size_t printHexadecimalGen(T, C)(T c, ref C[T.sizeof * 2] buf, bool upper) @trus
     }
     import mir.bitop: ctlz;
     immutable hexString = upper ? hexStringUpper : hexStringLower;
-    size_t ret = ctlz(c);
+    size_t ret = cast(size_t) ctlz(c);
     ret = (ret >> 2) + ((ret & 3) != 0);
     size_t i = ret;
     do

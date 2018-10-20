@@ -14,3 +14,4 @@ mir-runtime-test-*
 *.lst
 dub.selections.json
 libmir-runtime.a
+build
