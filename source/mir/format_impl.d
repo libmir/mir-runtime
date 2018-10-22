@@ -312,7 +312,7 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     size_t refLen = buf.length;
     do {
         T nc = c / 10;
-        buf.ptr[--refLen] = cast(C)('0' + nc * 10 - c);
+        buf.ptr[--refLen] = cast(C)('0' + c - nc * 10);
         c = nc;
     }
     while(c);

@@ -84,6 +84,13 @@ unittest
     assert(str == "Hi D2!\n");
 }
 
+@safe pure nothrow @nogc
+unittest
+{
+    auto str = stringBuf() << -1234567890 << getData;
+    assert(str == "-1234567890", str);
+}
+
 // 16-bytes
 /// C's compatible format specifier.
 struct FormatSpec
