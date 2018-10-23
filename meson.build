@@ -1,6 +1,10 @@
-project('mir-runtime', 'd', version : '0.0.0', license: 'BSL-1.0')
+project('mir-runtime', 'd', version : '0.0.2', license: 'BSL-1.0')
 
 mir_runtime_dir = include_directories('source/')
+
+mir_core_dep = dependency('mir-core', fallback : ['mir-core', 'mir_core_dep'])
+
+required_deps = [mir_core_dep]
 
 mir_runtime_src = [
     'source/mir/appender.d',
@@ -14,11 +18,13 @@ mir_runtime_lib = library(meson.project_name(),
     include_directories: mir_runtime_dir,
     install: true,
     version: meson.project_version(),
+    dependencies: required_deps,
 )
 
 mir_runtime_dep = declare_dependency(
     link_with: [mir_runtime_lib],
     include_directories: mir_runtime_dir,
+    dependencies: required_deps,
 )
 
 mir_runtime_test_exe = executable(meson.project_name() + '-test',
@@ -27,6 +33,7 @@ mir_runtime_test_exe = executable(meson.project_name() + '-test',
     d_unittest: true,
     d_module_versions: ['mir_test'],
     link_args: '-main',
+    dependencies: required_deps,
 )
 
 install_subdir('source/',
