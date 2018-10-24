@@ -1,6 +1,6 @@
 Mir Runtime
 ============
-Dlang @nogc runtime infrastructure for simple, slim, and fast code.
+Dlang @nogc runtime infrastructure for a simple, slim, and fast code.
 
 ### Requirements
 
