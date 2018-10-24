@@ -3,20 +3,6 @@
 +/
 module mir.exception;
 
-version(D_Exceptions)
-{
-    version = Mir_Exceptions;
-}
-else
-{
-    static if (__VERSION__ < 2082)
-    {
-        version = Mir_Exceptions;
-    }
-}
-
-version(Mir_Exceptions):
-
 /++
 +/
 class MirException : Exception
