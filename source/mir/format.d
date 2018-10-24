@@ -42,7 +42,13 @@ alias dstringBuf = _stringBuf!dchar;
 mixin template StreamFormatOp(C)
 {
     ///
-    ref typeof(this) opBinary(string op : "<<", T)(scope auto ref const T c) scope @safe
+    ref typeof(this) opBinary(string op : "<<", T)(scope ref const T c) scope @safe
+    {
+        return print!C(this, c);
+    }
+
+    ///
+    ref typeof(this) opBinary(string op : "<<", T)(const T c) scope @safe
     {
         return print!C(this, c);
     }
