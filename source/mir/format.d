@@ -66,8 +66,7 @@ unittest
 {
     auto name = "D";
     auto ver = 2;
-    auto str = stringBuf() << "Hi " << name << ver << "!\n" << getData;
-    assert(str == "Hi D2!\n");
+    assert(stringBuf() << "Hi " << name << ver << "!\n" << getData == "Hi D2!\n");
 }
 
 ///
@@ -76,8 +75,7 @@ unittest
 {
     auto name = "D"w;
     auto ver = 2;
-    auto str = wstringBuf() << "Hi "w << name << ver << "!\n"w << getData;
-    assert(str == "Hi D2!\n"w);
+    assert(wstringBuf() << "Hi "w << name << ver << "!\n"w << getData == "Hi D2!\n"w);
 }
 
 ///
@@ -86,15 +84,13 @@ unittest
 {
     auto name = "D"d;
     auto ver = 2;
-    auto str = dstringBuf() << "Hi "d  << name << ver << "!\n"d << getData;
-    assert(str == "Hi D2!\n");
+    assert(dstringBuf() << "Hi "d  << name << ver << "!\n"d << getData == "Hi D2!\n");
 }
 
 @safe pure nothrow @nogc
 unittest
 {
-    auto str = stringBuf() << -1234567890 << getData;
-    assert(str == "-1234567890", str);
+    assert(stringBuf() << -1234567890 << getData == "-1234567890");
 }
 
 // 16-bytes
