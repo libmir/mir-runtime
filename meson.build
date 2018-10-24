@@ -1,5 +1,11 @@
 project('mir-runtime', 'd', version : '0.0.2', license: 'BSL-1.0')
 
+add_project_arguments([
+    '-dip25',
+    '-dip1000',
+    '-dip1008',
+    ], language: 'd')
+
 mir_runtime_dir = include_directories('source/')
 
 mir_core_dep = dependency('mir-core', fallback : ['mir-core', 'mir_core_dep'])
