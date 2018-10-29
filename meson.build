@@ -17,6 +17,7 @@ mir_runtime_src = [
     'source/mir/exception.d',
     'source/mir/format_impl.d',
     'source/mir/format.d',
+    'source/mir/parse.d',
 ]
 
 mir_runtime_lib = library(meson.project_name(),
