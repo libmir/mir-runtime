@@ -85,7 +85,11 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     {
         auto cl = _currentLength;
         auto d = prepare(e.length);
-        (()@trusted=>memcpy(d.ptr + cl, e.ptr, e.length * T.sizeof))();
+        auto len = e.length * T.sizeof;
+        if (!__ctfe)
+            (()@trusted=>memcpy(d.ptr + cl, e.ptr, len))();
+        else
+            (()@trusted { (d.ptr + cl)[0 .. len] = e[0 .. len]; })();
     }
 
     static if (!hasElaborateAssign!T && !isAssignable!(T, const T))
@@ -93,7 +97,11 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     {
         auto cl = _currentLength;
         auto d = prepare(e.length);
-        (()@trusted=>memcpy(d.ptr + cl, e.ptr, e.length * T.sizeof))();
+        auto len = e.length * T.sizeof;
+        if (!__ctfe)
+            (()@trusted=>memcpy(d.ptr + cl, e.ptr, len))();
+        else
+            (()@trusted { (d.ptr + cl)[0 .. len] = e[0 .. len]; })();
     }
 
     void put(Iterable)(Iterable range) scope
@@ -105,8 +113,11 @@ struct ScopedBuffer(T, size_t bytes = 4096)
             auto d = prepare(range.length);
             static if (is(Iterable : R[]) && !hasElaborateAssign!T)
             {
-                // import core.stdc.string: memcpy;
-                (()@trusted=>memcpy(d.ptr + cl, range.ptr, range.length * T.sizeof))();
+                auto len = range.length * T.sizeof;
+                if (!__ctfe)
+                    (()@trusted=>memcpy(d.ptr + cl, e.ptr, len))();
+                else
+                    (()@trusted { (d.ptr + cl)[0 .. len] = e[0 .. len]; })();
             }
             else
             {
