@@ -9,7 +9,7 @@ import mir.format;
 size_t printFloatingPointExtend(T, C)(T c, scope ref const FormatSpec spec, scope ref C[512] buf) @trusted
 {
     char[512] cbuf = void;
-    return extendASCII(cbuf.ptr, buf.ptr, printFloatingPoint(cast(double)c, spec, cbuf));
+    return extendASCII(cbuf[].ptr, buf[].ptr, printFloatingPoint(cast(double)c, spec, cbuf));
 }
 
 size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref char[512] buf) @trusted
@@ -312,7 +312,7 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     size_t refLen = buf.length;
     do {
         T nc = c / 10;
-        buf.ptr[--refLen] = cast(C)('0' + c - nc * 10);
+        buf[].ptr[--refLen] = cast(C)('0' + c - nc * 10);
         c = nc;
     }
     while(c);
@@ -320,8 +320,8 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     {
         auto ret = buf.length - refLen;
         size_t i;
-        do buf.ptr[i] -= buf.ptr[refLen + i];
-        while(i < ret);
+        do buf[].ptr[i] = buf[].ptr[refLen + i];
+        while(++i < ret);
         return ret;
     }
     return buf.length;
@@ -341,4 +341,14 @@ pragma(inline, false) size_t extendASCII(char* from, dchar* to, size_t n)
     foreach (i; 0 .. n)
         to[i] = from[i];
     return n;
+}
+
+
+unittest
+{
+    import mir.appender;
+    import mir.format;
+
+    assert (stringBuf() << 123 << getData == "123");
+    static assert (stringBuf() << 123 << getData == "123");
 }
