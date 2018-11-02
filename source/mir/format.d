@@ -239,12 +239,12 @@ ref W printEscaped(C = char, W)(scope return ref W w, scope const(char)[] str)
 }
 
 ///
-// @safe pure nothrow @nogc
+@safe pure nothrow @nogc
 unittest
 {
     import mir.appender: ScopedBuffer;
     ScopedBuffer!char w;
-    assert(w.printEscaped("Hi\t" ~ `"@nogc"`).data == `"Hi\t\"@nogc\""`, w.data.idup);
+    assert(w.printEscaped("Hi\t" ~ `"@nogc"`).data == `"Hi\t\"@nogc\""`, w.data);
     w.reset;
     assert(w.printEscaped("\xF3").data == `"\xF3"`, w.data);
 }
@@ -260,6 +260,19 @@ ref W printElement(C = char, W, T)(scope return ref W w, scope auto ref const T 
     {
         return print!C(w, c);
     }
+}
+
+/++
+Multiargument overload.
++/
+ref W print(C = char, W, Args...)(scope return ref W w, scope auto ref const Args args)
+    if (Args.length > 1)
+{
+    foreach(i, ref c; args)
+        static if (i < Args.length - 1)
+            print!C(w, c);
+        else
+            return print!C(w, c);
 }
 
 ///
