@@ -11,13 +11,34 @@ class MirException : Exception
     mixin MirThrowableImpl;
 }
 
-///
+/// Generic style
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.exception;
+    import mir.format;
+    try throw new MirException("Hi D", 2, "!");
+    catch(Exception e) assert(e.msg == "Hi D2!");
+}
+
+/// C++ style
 @safe pure nothrow @nogc
 unittest
 {
     import mir.exception;
     import mir.format;
     try throw new MirException(stringBuf() << "Hi D" << 2 << "!" << getData);
+    catch(Exception e) assert(e.msg == "Hi D2!");
+}
+
+/// Low-level style
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.exception;
+    import mir.format;
+    stringBuf buf;
+    try throw new MirException(buf.print( "Hi D", 2, "!").data);
     catch(Exception e) assert(e.msg == "Hi D2!");
 }
 
@@ -122,6 +143,19 @@ mixin template MirThrowableImpl()
         import mir.internal.memory: free;
         if (!_global && msg.ptr != _payload.ptr)
             free(cast(void*)msg.ptr);
+    }
+
+    /++
+    Generic multiargument overload.
+    Constructs a string using the `print` function.
+    +/
+    @nogc @safe pure nothrow this(Args...)(scope auto ref Args args, string file = __FILE__, size_t line = __LINE__, Throwable nextInChain = null)
+        if (Args.length > 1)
+    {
+        import mir.format;
+        import mir.appender;
+        stringBuf buf;
+        this(buf.print(args).data, file, line, nextInChain);
     }
 }
 
