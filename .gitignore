@@ -15,3 +15,4 @@ mir-runtime-test-*
 dub.selections.json
 libmir-runtime.a
 build
+subprojects/mir-core
