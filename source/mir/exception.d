@@ -147,7 +147,7 @@ mixin template MirThrowableImpl()
 
     /++
     Generic multiargument overload.
-    Construct string using the `print` function.
+    Constructs a string using the `print` function.
     +/
     @nogc @safe pure nothrow this(Args...)(scope auto ref Args args, string file = __FILE__, size_t line = __LINE__, Throwable nextInChain = null)
         if (Args.length > 1)
