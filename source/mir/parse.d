@@ -6,6 +6,43 @@ import mir.primitives;
 import std.range.primitives: isInputRange;
 
 /++
+Throws: nogc Exception in case of parse error or non-empty remaining input.
++/
+T fromString(T, Range)(scope auto ref Range r)
+{
+    static immutable excne = new Exception("fromString: remaining input is not empty after parsing " ~ T.stringof);
+    static immutable excfp = new Exception("fromString failed to parse " ~ T.stringof);
+
+    T value;
+    if (parse!T(r, value))
+    {
+        if (r.empty)
+        {
+            return value;
+        }
+        throw excne;
+    }
+    else
+    {
+        throw excfp;
+    }
+}
+
+///
+@safe pure @nogc unittest
+{
+    assert("123".fromString!int == 123);
+
+    auto s = "123";
+    assert(s.fromString!int == 123);
+    assert(s == "");
+
+    s = "123";
+    assert(s[].fromString!int == 123);
+    assert(s == "123");
+}
+
+/++
 +/
 bool parse(T : byte, Range)(scope ref Range r, scope ref T value)
     if (isInputRange!Range && !__traits(isUnsigned, T))
