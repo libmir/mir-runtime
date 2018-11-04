@@ -235,6 +235,18 @@ size_t printHexAddressGen(T, C)(T c, ref C[T.sizeof * 2] buf, bool upper)
 static immutable hexStringUpper = "0123456789ABCDEF";
 static immutable hexStringLower = "0123456789abcdef";
 
+pragma(inline, false) size_t printBufferShift(size_t length, size_t shift, scope char* ptr) { return printBufferShiftGen!char(length, shift, ptr); }
+pragma(inline, false) size_t printBufferShift(size_t length, size_t shift, scope wchar* ptr) { return printBufferShiftGen!wchar(length, shift, ptr); }
+pragma(inline, false) size_t printBufferShift(size_t length, size_t shift, scope dchar* ptr) { return printBufferShiftGen!dchar(length, shift, ptr); }
+
+size_t printBufferShiftGen(C)(size_t length, size_t shift, scope C* ptr) @trusted
+{
+    size_t i;
+    do ptr[i] = ptr[shift + i];
+    while(++i < length);
+    return length;
+}
+
 pragma(inline, false) size_t printSigned(int c, scope ref char[11] buf, char sign = '\0') { return printSignedGen(c, buf, sign); }
 pragma(inline, false) size_t printSigned(long c, scope ref char[21] buf, char sign = '\0') { return printSignedGen(c, buf, sign); }
 static if (is(cent))
@@ -250,17 +262,47 @@ pragma(inline, false) size_t printSigned(long c, scope ref dchar[21] buf, dchar 
 static if (is(cent))
 pragma(inline, false) size_t printSigned(cent c, scope ref dchar[40] buf, dchar sign = '\0') { return printSignedGen(c, buf, sign); }
 
-size_t printSignedGen(T, C, size_t N)(T c, scope ref C[N] buf, C sign)
+
+pragma(inline, false) size_t printSignedToTail(int c, scope ref char[11] buf, char sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+pragma(inline, false) size_t printSignedToTail(long c, scope ref char[21] buf, char sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+static if (is(cent))
+pragma(inline, false) size_t printSignedToTail(cent c, scope ref char[40] buf, char sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+
+pragma(inline, false) size_t printSignedToTail(int c, scope ref wchar[11] buf, wchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+pragma(inline, false) size_t printSignedToTail(long c, scope ref wchar[21] buf, wchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+static if (is(cent))
+pragma(inline, false) size_t printSignedToTail(cent c, scope ref wchar[40] buf, wchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+
+pragma(inline, false) size_t printSignedToTail(int c, scope ref dchar[11] buf, dchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+pragma(inline, false) size_t printSignedToTail(long c, scope ref dchar[21] buf, dchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+static if (is(cent))
+pragma(inline, false) size_t printSignedToTail(cent c, scope ref dchar[40] buf, dchar sign = '\0') { return printSignedToTailGen(c, buf, sign); }
+
+size_t printSignedGen(T, C, size_t N)(T c, scope ref C[N] buf, C sign) @trusted
+{
+    auto ret = printSignedToTail(c, buf, sign);
+    if (auto shift =  buf.length - ret)
+    {
+        return printBufferShift(ret, shift, buf[].ptr);
+    }
+    return ret;
+}
+
+size_t printSignedToTailGen(T, C, size_t N)(T c, scope ref C[N] buf, C sign)
 {
     if (c < 0)
     {
         sign = '-';
         c = -c;
     }
-    if (sign == '\0')
-        return printUnsigned(c, buf[0 .. N - 1]);
-    buf[0] = sign;
-    return printUnsigned(c, buf[1 .. N]) + 1;
+
+    auto ret = printUnsignedToTail(c, buf[1 .. N]);
+
+    if (sign != '\0')
+    {
+        buf[$ - ++ret] = sign;
+    }
+    return ret;
 }
 
 pragma(inline, false) size_t printUnsigned(uint c, scope ref char[10] buf) { return printUnsignedGen(c, buf); }
@@ -278,13 +320,28 @@ pragma(inline, false) size_t printUnsigned(ulong c, scope ref dchar[20] buf) { r
 static if (is(ucent))
 pragma(inline, false) size_t printUnsigned(ucent c, scope ref dchar[39] buf) { return printUnsignedGen(c, buf); }
 
-size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
+pragma(inline, false) size_t printUnsignedToTail(uint c, scope ref char[10] buf) { return printUnsignedToTailGen(c, buf); }
+pragma(inline, false) size_t printUnsignedToTail(ulong c, scope ref char[20] buf) { return printUnsignedToTailGen(c, buf); }
+static if (is(ucent))
+pragma(inline, false) size_t printUnsignedToTail(ucent c, scope ref char[39] buf) { return printUnsignedToTailGen(c, buf); }
+
+pragma(inline, false) size_t printUnsignedToTail(uint c, scope ref wchar[10] buf) { return printUnsignedToTailGen(c, buf); }
+pragma(inline, false) size_t printUnsignedToTail(ulong c, scope ref wchar[20] buf) { return printUnsignedToTailGen(c, buf); }
+static if (is(ucent))
+pragma(inline, false) size_t printUnsignedToTail(ucent c, scope ref wchar[39] buf) { return printUnsignedToTailGen(c, buf); }
+
+pragma(inline, false) size_t printUnsignedToTail(uint c, scope ref dchar[10] buf) { return printUnsignedToTailGen(c, buf); }
+pragma(inline, false) size_t printUnsignedToTail(ulong c, scope ref dchar[20] buf) { return printUnsignedToTailGen(c, buf); }
+static if (is(ucent))
+pragma(inline, false) size_t printUnsignedToTail(ucent c, scope ref dchar[39] buf) { return printUnsignedToTailGen(c, buf); }
+
+size_t printUnsignedToTailGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
 {
     static if (T.sizeof == 4)
     {
         if (c < 10)
         {
-            buf[0] = cast(char)('0' + c);
+            buf[$ - 1] = cast(char)('0' + c);
             return 1;
         }
         static assert(N == 10);
@@ -294,7 +351,7 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     {
         if (c <= uint.max)
         {
-            return printUnsigned(cast(uint)c, buf[0 .. 20]);
+            return printUnsignedToTail(cast(uint)c, buf[$ - 20 .. $]);
         }
         static assert(N == 20);
     }
@@ -303,7 +360,7 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     {
         if (c <= ulong.max)
         {
-            return printUnsigned(cast(ulong)c, buf[0 .. 20]);
+            return printUnsignedToTail(cast(ulong)c, buf[$ - 39 .. $]);
         }
         static assert(N == 39);
     }
@@ -316,15 +373,17 @@ size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
         c = nc;
     }
     while(c);
-    if (refLen)
+    return buf.length - refLen;
+}
+
+size_t printUnsignedGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
+{
+    auto ret = printUnsignedToTail(c, buf);
+    if (auto shift =  buf.length - ret)
     {
-        auto ret = buf.length - refLen;
-        size_t i;
-        do buf[].ptr[i] = buf[].ptr[refLen + i];
-        while(++i < ret);
-        return ret;
+        return printBufferShift(ret, shift, buf[].ptr);
     }
-    return buf.length;
+    return ret;
 }
 
 nothrow @trusted
@@ -343,7 +402,6 @@ pragma(inline, false) size_t extendASCII(char* from, dchar* to, size_t n)
     return n;
 }
 
-
 unittest
 {
     import mir.appender;
@@ -351,4 +409,30 @@ unittest
 
     assert (stringBuf() << 123 << getData == "123");
     static assert (stringBuf() << 123 << getData == "123");
+}
+
+ref W printIntegralZeroImpl(C, size_t N, W, I)(scope return ref W w, I c, size_t zeroLen)
+{
+    static if (__traits(isUnsigned, I))
+        alias impl = printUnsignedToTail;
+    else
+        alias impl = printSignedToTail;
+    C[N] buf = void;
+    size_t n = impl(c, buf);
+    static if (!__traits(isUnsigned, I))
+    {
+        if (c < 0)
+        {
+            n--;
+            w.put(C('-'));
+        }
+    }
+    sizediff_t zeros = zeroLen - n;
+    if (zeros > 0)
+    {
+        do w.put(C('0'));
+        while(--zeros);
+    }
+    w.put(buf[$ - n ..  $]);
+    return w;
 }

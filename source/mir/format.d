@@ -140,16 +140,9 @@ struct FormattedFloating(T)
     ///
     void toString(C = char, W)(scope ref W w) scope const
     {
-        static if (isFastBuffer!W)
-        {
-            w.advance(printFloatingPoint(value, spec, w.getBuffer(512).getStaticBuf!512));
-        }
-        else
-        {
-            C[512] buf = void;
-            auto n = printFloatingPoint(value, spec, buf);
-            w.put(buf[0 ..  n]);
-        }
+        C[512] buf = void;
+        auto n = printFloatingPoint(value, spec, buf);
+        w.put(buf[0 ..  n]);
     }
 }
 
@@ -303,8 +296,16 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
 @safe pure nothrow @nogc
 unittest
 {
+    enum Flag
+    {
+        no,
+        yes,
+    }
+
     import mir.appender: ScopedBuffer;
     ScopedBuffer!char w;
+    w.print(Flag.yes);
+    assert(w.data == "yes", w.data);
 }
 
 /// ditto
@@ -464,106 +465,22 @@ ref W print(C = char, W)(scope return ref W w, scope const(C)[] c)
 }
 
 /// ditto
-ref W print(C = char, W)(scope return ref W w, uint c)
+ref W print(C = char, W, I)(scope return ref W w, const I c)
+    if (isIntegral!I && !is(I == enum))
 {
-    enum N = 10;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printUnsigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
+    static if (I.sizeof == 16)
+        enum N = 39;
     else
-    {
-        C[N] buf = void;
-        auto n = printUnsigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
-    return w;
-}
-
-/// ditto
-ref W print(C = char, W)(scope return ref W w, int c)
-{
-    enum N = 11;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printSigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
+    static if (I.sizeof == 8)
+        enum N = 21;
     else
-    {
-        C[N] buf = void;
-        auto n = printSigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
-    return w;
-}
-
-/// ditto
-ref W print(C = char, W)(scope return ref W w, ulong c)
-{
-    enum N = 20;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printUnsigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
+        enum N = 10;
+    C[N + !__traits(isUnsigned, I)] buf = void;
+    static if (__traits(isUnsigned, I))
+        auto n = printUnsignedToTail(c, buf);
     else
-    {
-        C[N] buf = void;
-        auto n = printUnsigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
-    return w;
-}
-
-/// ditto
-ref W print(C = char, W)(scope return ref W w, long c)
-{
-    enum N = 21;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printSigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
-    else
-    {
-        C[N] buf = void;
-        auto n = printSigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
-    return w;
-}
-
-static if (is(ucent))
-/// ditto
-ref W print(C = char, W)(scope return ref W w, ucent c)
-{
-    enum N = 39;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printUnsigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
-    else
-    {
-        C[N] buf = void;
-        auto n = printUnsigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
-    return w;
-}
-
-static if (is(cent))
-/// ditto
-ref W print(C = char, W)(scope return ref W w, cent c)
-{
-    enum N = 40;
-    static if (isFastBuffer!W)
-    {
-        w.advance(printSigned(c, w.getBuffer(N).getStaticBuf!N));
-    }
-    else
-    {
-        C[N] buf = void;
-        auto n = printSigned(c, buf);
-        w.put(buf[0 ..  n]);
-    }
+        auto n = printSignedToTail(c, buf);
+    w.put(buf[$ - n ..  $]);
     return w;
 }
 
@@ -733,7 +650,55 @@ template isFastBuffer(W)
     enum isFastBuffer = __traits(hasMember, W, "getBuffer") && __traits(hasMember, W, "advance");
 }
 
-/// ditto
+///
+ref W printZeroPad(C = char, W, I)(scope return ref W w, const I c, size_t minimalLength)
+    if (isIntegral!I && !is(I == enum))
+{
+    static if (I.sizeof == 16)
+        enum N = 39;
+    else
+    static if (I.sizeof == 8)
+        enum N = 21;
+    else
+        enum N = 10;
+    C[N + !__traits(isUnsigned, I)] buf = void;
+    static if (__traits(isUnsigned, I))
+        auto n = printUnsignedToTail(c, buf);
+    else
+        auto n = printSignedToTail(c, buf);
+    sizediff_t zeros = minimalLength - n;
+
+    if (zeros > 0)
+    {
+        static if (!__traits(isUnsigned, I))
+        {
+            if (c < 0)
+            {
+                n--;
+                w.put(C('-'));
+            }
+        }
+        do w.put(C('0'));
+        while(--zeros);
+    }
+    w.put(buf[$ - n ..  $]);
+    return w;
+}
+
+///
+unittest
+{
+    import mir.appender;
+    ScopedBuffer!char w;
+
+    w.printZeroPad(-123, 5);
+    w.put(' ');
+    w.printZeroPad(123, 5);
+
+    assert(w.data == "-0123 00123", w.data);
+}
+
+///
 size_t printBoolean(C)(bool c, ref C[5] buf)
     if(is(C == char) || is(C == wchar) || is(C == dchar))
 {
@@ -757,7 +722,7 @@ size_t printBoolean(C)(bool c, ref C[5] buf)
     }
 }
 
-/// ditto
+///
 size_t printStaticString(string str, C)(scope ref C[str.length] buf)
     if((is(C == char) || is(C == wchar) || is(C == dchar)) && (C[str.length]).sizeof <= 512)
 {
