@@ -6,8 +6,6 @@ import std.traits;
 
 import mir.format_impl;
 
-@safe:
-
 ///
 struct GetData {}
 
@@ -42,13 +40,13 @@ alias dstringBuf = _stringBuf!dchar;
 mixin template StreamFormatOp(C)
 {
     ///
-    ref typeof(this) opBinary(string op : "<<", T)(scope ref const T c) scope @safe
+    ref typeof(this) opBinary(string op : "<<", T)(scope ref const T c) scope
     {
         return print!C(this, c);
     }
 
     ///
-    ref typeof(this) opBinary(string op : "<<", T)(const T c) scope @safe
+    ref typeof(this) opBinary(string op : "<<", T)(const T c) scope
     {
         return print!C(this, c);
     }
@@ -181,7 +179,7 @@ struct HexAddress(T)
             w.advance(printHexAddress(value, w.getBuffer(N).getStaticBuf!N, cast(bool) switchLU));
         }
         else
-        {
+        { 
             C[N] buf = void;
             printHexAddress(value, buf, cast(bool) switchLU);
             w.put(buf[]);
@@ -280,25 +278,24 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
     if (is(T == enum))
 {
     static assert(!is(OriginalType!T == enum));
-    string c = void;
-    switch (c)
+    string s;
+    S: switch (c)
     {
         static foreach(member; __traits(allMembers, T))
         {
             case __traits(getMember, T, member):
-            c = member;
-            break;
+            s = member;
+            break S;
         }
         default:
-            w.put(c);
             static immutable C[] str = T.stringof;
             w.put(str[]);
             w.put('(');
-            print!(w, cast(OriginalType!T) c);
+            print(w, cast(OriginalType!T) c);
             w.put(')');
             return w;
     }
-    w.put(c);
+    w.put(s);
     return w;
 }
 
@@ -580,7 +577,7 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
 
 /// ditto
 pragma(inline, false)
-ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
+ref W print(C = char, W, T)(scope return ref W w, scope ref const T c) @nogc
     if (is(T == struct) || is(T == union))
 {
     static if (__traits(hasMember, T, "toString"))
@@ -626,7 +623,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
         foreach (i, ref e; c.tupleof)
         {
             static if (i)
-                print!(C, sep)(w);
+                printStaticStringInternal!(C, sep)(w);
             print!C(w, e);
         }
         w.put(right);
@@ -651,7 +648,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
     static if (__traits(hasMember, T, "toString"))
     {
         if (c is null)
-            w.print!(C, "null");
+            printStaticStringInternal!(C, "null")(w);
         else
         static if (is(typeof(c.toString!C(w))))
             c.toString!C(w);
