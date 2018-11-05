@@ -494,7 +494,7 @@ ref W print(C = char, W, T)(scope return ref W w, const T c)
 
 /// ditto
 pragma(inline, false)
-ref W print(C = char, W, T)(scope return ref W w, scope ref const T c) @nogc
+ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
     if (is(T == struct) || is(T == union))
 {
     static if (__traits(hasMember, T, "toString"))
