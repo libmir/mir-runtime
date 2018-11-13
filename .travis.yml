@@ -35,7 +35,7 @@ install:
     - sudo pip3 install meson
 script:
  - dub test --arch "$ARCH" --build=unittest-cov
- - ./test_examples.sh
+ - bash -e ./test_examples.sh
  - meson build -D with_test=true && cd build && ninja -j4 && ninja -j4 test -v && cd .. # TODO: 32bit meson test
 
 after_success:
