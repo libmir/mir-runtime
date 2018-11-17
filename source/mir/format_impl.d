@@ -351,7 +351,7 @@ size_t printUnsignedToTailGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     {
         if (c <= uint.max)
         {
-            return printUnsignedToTail(cast(uint)c, buf[$ - 20 .. $]);
+            return printUnsignedToTail(cast(uint)c, buf[$ - 10 .. $]);
         }
         static assert(N == 20);
     }
@@ -360,7 +360,7 @@ size_t printUnsignedToTailGen(T, C, size_t N)(T c, scope ref C[N] buf) @trusted
     {
         if (c <= ulong.max)
         {
-            return printUnsignedToTail(cast(ulong)c, buf[$ - 39 .. $]);
+            return printUnsignedToTail(cast(ulong)c, buf[$ - 20 .. $]);
         }
         static assert(N == 39);
     }
@@ -407,7 +407,7 @@ unittest
     import mir.appender;
     import mir.format;
 
-    assert (stringBuf() << 123 << getData == "123");
+    assert (stringBuf() << 123L << getData == "123");
     static assert (stringBuf() << 123 << getData == "123");
 }
 

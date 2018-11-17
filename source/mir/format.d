@@ -472,7 +472,7 @@ ref W print(C = char, W, I)(scope return ref W w, const I c)
         enum N = 39;
     else
     static if (I.sizeof == 8)
-        enum N = 21;
+        enum N = 20;
     else
         enum N = 10;
     C[N + !__traits(isUnsigned, I)] buf = void;
@@ -658,7 +658,7 @@ ref W printZeroPad(C = char, W, I)(scope return ref W w, const I c, size_t minim
         enum N = 39;
     else
     static if (I.sizeof == 8)
-        enum N = 21;
+        enum N = 20;
     else
         enum N = 10;
     C[N + !__traits(isUnsigned, I)] buf = void;
