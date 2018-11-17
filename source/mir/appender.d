@@ -38,10 +38,19 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     {
         import mir.internal.memory: realloc;
         _currentLength += n;
-        if (_currentLength <= _bufferLength)
+        if (_buffer.length == 0)
         {
-            return _scopeBuffer[0 .. _currentLength];
+            if (_currentLength <= _bufferLength)
+            {
+                return _scopeBuffer[0 .. _currentLength];
+            }
+            else
+            {
+                auto newLen = _currentLength << 1;
+                _buffer = (cast(T*)realloc(_scopeBuffer.ptr, T.sizeof * newLen))[0 .. newLen];
+            }
         }
+        else
         if (_currentLength > _buffer.length)
         {
             auto newLen = _currentLength << 1;
