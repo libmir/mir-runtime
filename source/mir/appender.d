@@ -60,9 +60,19 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     ~this()
     {
         import mir.internal.memory: free;
-        _buffer._mir_destroy;
+        data._mir_destroy;
         if (_buffer.ptr is _scopeBuffer.ptr)
             (() @trusted => free(_buffer.ptr))();
+    }
+
+    void popBackN(size_t n)
+    {
+        sizediff_t t = _currentLength - n;
+        if (t < 0)
+            assert(0, "ScopedBffer.popBackN: n is too large.");
+            import mir.exception;
+        data[t .. _currentLength]._mir_destroy;
+        _currentLength = t;
     }
 
     void put(R e) @safe scope
@@ -142,15 +152,19 @@ struct ScopedBuffer(T, size_t bytes = 4096)
 
     T[] data() @property @safe scope
     {
-        return _buffer.length > _bufferLength ? _buffer[0 .. _currentLength] : _scopeBuffer[0 .. _currentLength];
+        return _buffer.length ? _buffer[0 .. _currentLength] : _scopeBuffer[0 .. _currentLength];
     }
 }
 
 ///
-@safe pure nothrow @nogc unittest
+//@safe pure nothrow @nogc 
+unittest
 {
     ScopedBuffer!char buf;
     buf.put('c');
     buf.put("str");
     assert(buf.data == "cstr");
+
+    buf.popBackN(2);
+    assert(buf.data == "cs");
 }
