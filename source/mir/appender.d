@@ -61,8 +61,7 @@ struct ScopedBuffer(T, size_t bytes = 4096)
     {
         import mir.internal.memory: free;
         data._mir_destroy;
-        if (_buffer.ptr is _scopeBuffer.ptr)
-            (() @trusted => free(_buffer.ptr))();
+        (() @trusted => free(_buffer.ptr))();
     }
 
     void popBackN(size_t n)
