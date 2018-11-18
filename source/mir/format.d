@@ -610,7 +610,7 @@ private template hasIterableLightConst(T)
 {
     static if (__traits(hasMember, T, "lightConst"))
     {
-        enum hasIterableLightConst = isIterable!(ReturnType!((const T t) => t.leghtConst));
+        enum hasIterableLightConst = isIterable!(ReturnType!((const T t) => t.lightConst));
     }
     else
     {
