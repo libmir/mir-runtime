@@ -524,7 +524,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
         {
             if (!first)
             {
-                print!(C, sep)(w);
+                printStaticStringInternal!(C, sep)(w);
                 first = false;
             }
             print!C(w, e);
@@ -592,7 +592,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
         {
             if (!first)
             {
-                print!(C, sep)(w);
+                printStaticStringInternal!(C, sep)(w);
                 first = false;
             }
             print!C(w, e);
