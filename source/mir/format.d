@@ -63,7 +63,7 @@ mixin template StreamFormatOp(C)
 unittest
 {
     auto name = "D";
-    auto ver = 2;
+    auto ver = 2.0;
     assert(stringBuf() << "Hi " << name << ver << "!\n" << getData == "Hi D2!\n");
 }
 

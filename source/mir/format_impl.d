@@ -3,7 +3,7 @@ module mir.format_impl;
 
 import mir.format;
 
-@safe pure @nogc:
+@safe pure @nogc nothrow:
 
 
 size_t printFloatingPointExtend(T, C)(T c, scope ref const FormatSpec spec, scope ref C[512] buf) @trusted
@@ -54,11 +54,13 @@ size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref 
 
     if (specFormat && specFormat != 's' && specFormat != 'g' && specFormat != 'G')
     {
-        if (specFormat != 'e' && specFormat != 'E' && specFormat != 'f' && specFormat != 'F' && specFormat != 'a' && specFormat != 'A')
-        {
-            static immutable wrongFS = new Error("Wrong floating point format specifier.");
-            throw wrongFS;
-        }
+        assert (
+            specFormat == 'e'
+         || specFormat == 'E'
+         || specFormat == 'f'
+         || specFormat == 'F'
+         || specFormat == 'a'
+         || specFormat == 'A', "Wrong floating point format specifier.");
         fmt[9] = specFormat;
     }
     uint fmtRevLen = 5;
@@ -68,13 +70,11 @@ size_t printFloatingPointGen(T)(T c, scope ref const FormatSpec spec, scope ref 
     if (spec.plus) fmt[fmtRevLen--] = '+';
     if (spec.dash) fmt[fmtRevLen--] = '-';
 
-    static immutable snprintfError = new Exception("snprintf failed to print a floating point number");
-                import core.stdc.stdio : snprintf;
+    import core.stdc.stdio : snprintf;
     ptrdiff_t res = assumePureSafe(&snprintf)((()@trusted =>buf.ptr)(), buf.length - 1, &fmt[fmtRevLen], spec.width, spec.precision, c);
-    if (res < 0)
-        throw snprintfError;
+    assert (res >= 0, "snprintf failed to print a floating point number");
     import mir.utility: min;
-    return min(cast(size_t)res, buf.length - 1);
+    return res < 0 ? 0 : min(cast(size_t)res, buf.length - 1);
 }
 
 auto assumePureSafe(T)(T t) @trusted
