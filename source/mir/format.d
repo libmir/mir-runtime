@@ -523,10 +523,8 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
         foreach (ref e; c.lightConst)
         {
             if (!first)
-            {
                 printStaticStringInternal!(C, sep)(w);
-                first = false;
-            }
+            first = false;
             print!C(w, e);
         }
         w.put(right);
@@ -548,7 +546,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
     return w;
 }
 
-///
+/// ditto
 // FUTURE: remove it
 pragma(inline, false)
 ref W print(C = char, W, T)(scope return ref W w, scope const T c)
@@ -591,10 +589,8 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
         foreach (ref e; c.lightConst)
         {
             if (!first)
-            {
                 printStaticStringInternal!(C, sep)(w);
-                first = false;
-            }
+            first = false;
             print!C(w, e);
         }
         w.put(right);
