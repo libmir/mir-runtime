@@ -194,7 +194,7 @@ private const(char)[] initilizePayload(ref return char[maxMsgLen] payload, scope
         }
     }
     if (__ctfe)
-        payload[0 .. msg.length] = msg;
+        payload[][0 .. msg.length] = msg;
     else
         (() @trusted => memcpy(payload.ptr, msg.ptr, msg.length))();
     return payload[0 .. msg.length];
