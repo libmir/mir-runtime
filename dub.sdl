@@ -3,5 +3,5 @@ description "Dlang @nogc runtime infrastructure for simple, slim, and fast code.
 authors "Ilya Yaroshenko"
 copyright "Copyright © 2018, Ilya Yaroshenko, Copyright © 2018, Symmetry Investments & Kaleidic Associates"
 license "BSL-1.0"
-dependency "mir-core" version=">=0.0.0 <0.3.0"
+dependency "mir-core" version=">=0.2.0 <0.4.0"
 dflags "-dip25" "-dip1000" "-dip1008"

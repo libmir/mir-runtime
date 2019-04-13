@@ -22,7 +22,7 @@ struct ScopedBuffer(T, size_t bytes = 4096)
 {
     import std.traits: isIterable, hasElaborateAssign, isAssignable, isArray;
     import mir.primitives: hasLength;
-    import std.backdoor: emplaceRef;
+    import mir.conv: emplaceRef;
 
     private enum size_t _bufferLength =  bytes / T.sizeof + (bytes % T.sizeof != 0);
     private T[] _buffer;
