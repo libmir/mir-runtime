@@ -39,12 +39,9 @@ install_subdir('source/',
     install_dir: 'include/d/' + meson.project_name(),
 )
 
-import('pkgconfig').generate(
-    name: meson.project_name(),
+import('pkgconfig').generate(mir_runtime_lib,
     description: 'Mir runtime - Base software building blocks and conventions.',
     subdirs: 'd/' + meson.project_name(),
-    libraries: [mir_runtime_lib],
-    version: meson.project_version(),
 )
 
 if get_option('with_test')
