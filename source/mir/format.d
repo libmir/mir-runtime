@@ -510,7 +510,14 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
         else
         static if (is(typeof(w.put(c.toString))))
             w.put(c.toString);
-        else static assert(0, "const " ~ T.stringof ~ ".toString definition is wrong");
+        else static assert(0, ~ T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
+        return w;
+    }
+    else
+    static if (__traits(compiles, { scope const(C)[] string_of_c = c; }))
+    {
+        scope const(C)[] string_of_c = c;
+        return print(w, string_of_c);
     }
     else
     static if (hasIterableLightConst!T)
@@ -528,6 +535,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
             print!C(w, e);
         }
         w.put(right);
+        return w;
     }
     else
     {
@@ -542,8 +550,8 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
             print!C(w, e);
         }
         w.put(right);
+        return w;
     }
-    return w;
 }
 
 /// ditto
@@ -555,12 +563,27 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
     return print!(C, W, T)(w, c);
 }
 
+///
+@safe pure nothrow @nogc
+unittest
+{
+    static struct A { scope const void toString(C, W)(scope ref W w) { w.put(C('a')); } }
+    static struct S { scope const void toString(W)(scope ref W w) { w.put("s"); } }
+    static struct D { scope const void toString(Dg)(scope Dg sink) { sink("d"); } }
+    static struct F { scope const const(char)[] toString()() return { return "f"; } }
+    static struct G { const(char)[] s = "g"; alias s this; }
+
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    assert(stringBuf() << A() << S() << D() << F() << G() << getData == "asdfg");
+}
+
 /// ditto
 pragma(inline, false)
 ref W print(C = char, W, T)(scope return ref W w, scope const T c)
     if (is(T == class) || is(T == interface))
 {
-    static if (__traits(hasMember, T, "toString"))
+    static if (__traits(hasMember, T, "toString") || __traits(compiles, { scope const(C)[] string_of_c = c; }))
     {
         if (c is null)
             printStaticStringInternal!(C, "null")(w);
@@ -576,7 +599,13 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
         else
         static if (is(typeof(w.put(c.toString))))
             w.put(c.toString);
-        else static assert(0, "const " ~ T.stringof ~ ".toString definition is wrong");
+        else
+        static if (__traits(compiles, { scope const(C)[] string_of_c = c; }))
+        {
+            scope const(C)[] string_of_c = c;
+            return print(w, string_of_c);
+        }
+        else static assert(0, ~ T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
     }
     else
     static if (hasIterableLightConst!T)
@@ -600,6 +629,21 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
         w.put(T.stringof);
     }
     return w;
+}
+
+///
+@safe pure nothrow
+unittest
+{
+    static class A { scope const void toString(C, W)(scope ref W w) { w.put(C('a')); } }
+    static class S { scope const void toString(W)(scope ref W w) { w.put("s"); } }
+    static class D { scope const void toString(Dg)(scope Dg sink) { sink("d"); } }
+    static class F { scope const const(char)[] toString()() return { return "f"; } }
+    static class G { const(char)[] s = "g"; alias s this; }
+
+    import mir.appender: ScopedBuffer;
+    ScopedBuffer!char w;
+    assert(stringBuf() << new A() << new S() << new D() << new F() << new G() << getData == "asdfg");
 }
 
 private template hasIterableLightConst(T)

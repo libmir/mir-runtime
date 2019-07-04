@@ -1,4 +1,4 @@
-project('mir-runtime', 'd', version : '0.0.2', license: 'BSL-1.0')
+project('mir-runtime', 'd', version : '0.0.23', license: 'BSL-1.0')
 
 add_project_arguments([
     '-dip25',

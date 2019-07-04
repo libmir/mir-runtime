@@ -16,7 +16,6 @@ class MirException : Exception
 unittest
 {
     import mir.exception;
-    import mir.format;
     try throw new MirException("Hi D", 2, "!");
     catch(Exception e) assert(e.msg == "Hi D2!");
 }
@@ -64,6 +63,90 @@ unittest
     assert(func("runtime-time check") == 0);
 
     static assert(func("compile-time check") == 1);
+}
+
+// ///
+// auto ref enforce(T, Args...)(scope auto return ref T arg, lazy @nogc Args args, string file = __FILE__, int line = __LINE__) @nogc
+//     if (Args.length)
+// {
+//     import mir.utility: _expect;
+//     static if (__traits(compiles, arg !is null))
+//     {
+//         if (_expect(arg !is null, true))
+//             return arg;
+//     }
+//     else
+//     {
+//         if (_expect(cast(bool)arg, true))
+//             return arg;
+//     }
+//     import mir.format;
+//     stringBuf buf;
+//     throw new MirException(buf.print(args).data, file, line);
+// }
+
+// ///
+// @safe pure nothrow @nogc
+// unittest
+// {
+//     import mir.exception;
+//     try enforce(false, "Hi D", 2, "!");
+//     catch(Exception e) assert(e.msg == "Hi D2!");
+// }
+
+// ///
+// auto ref enforce(T)(scope auto return ref T arg, lazy scope const(char)[] msg, string file = __FILE__, int line = __LINE__) @nogc
+// {
+//     import mir.functional: forward;
+//     import mir.utility: _expect;
+//     static if (__traits(compiles, arg !is null))
+//     {
+//         if (_expect(arg !is null, true))
+//             return forward!arg[0];
+//     }
+//     else
+//     {
+//         if (_expect(cast(bool)arg, true))
+//             return forward!arg[0];
+//     }
+//     throw new MirException(msg, file, line);
+// }
+
+// ///
+// @safe pure nothrow @nogc
+// unittest
+// {
+//     import mir.exception;
+//     try enforce(false, "Msg");
+//     catch(Exception e) assert(e.msg == "Msg");
+// }
+
+///
+auto ref enforce(string fmt, string file = __FILE__, int line = __LINE__, Expr)(scope auto return ref Expr arg) @trusted
+{
+    import mir.functional: forward;
+    import mir.utility: _expect;
+    static if (__traits(compiles, arg !is null))
+    {
+        if (_expect(arg !is null, true))
+            return forward!arg[0];
+    }
+    else
+    {
+        if (_expect(cast(bool)arg, true))
+            return forward!arg[0];
+    }
+    static immutable exception = new Exception(fmt, file, line);
+    throw exception;
+}
+
+///
+@safe pure nothrow @nogc
+unittest
+{
+    import mir.exception;
+    try enforce!"Msg"(false);
+    catch(Exception e) assert(e.msg == "Msg");
 }
 
 /++
@@ -153,7 +236,6 @@ mixin template MirThrowableImpl()
         if (Args.length > 1)
     {
         import mir.format;
-        import mir.appender;
         stringBuf buf;
         this(buf.print(args).data, file, line, nextInChain);
     }
