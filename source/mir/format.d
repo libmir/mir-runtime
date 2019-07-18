@@ -510,7 +510,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope ref const T c)
         else
         static if (is(typeof(w.put(c.toString))))
             w.put(c.toString);
-        else static assert(0, ~ T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
+        else static assert(0, T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
         return w;
     }
     else
@@ -605,7 +605,7 @@ ref W print(C = char, W, T)(scope return ref W w, scope const T c)
             scope const(C)[] string_of_c = c;
             return print(w, string_of_c);
         }
-        else static assert(0, ~ T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
+        else static assert(0, T.stringof ~ ".toString definition is wrong: 'const scope' qualifier may be missing.");
     }
     else
     static if (hasIterableLightConst!T)
