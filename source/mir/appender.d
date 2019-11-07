@@ -36,7 +36,7 @@ struct ScopedBuffer(T, size_t bytes = 4096)
 
     private T[] prepare(size_t n) @trusted scope
     {
-        import mir.internal.memory: realloc;
+        import mir.internal.memory: realloc, malloc;
         _currentLength += n;
         if (_buffer.length == 0)
         {
@@ -47,7 +47,8 @@ struct ScopedBuffer(T, size_t bytes = 4096)
             else
             {
                 auto newLen = _currentLength << 1;
-                _buffer = (cast(T*)realloc(_scopeBuffer.ptr, T.sizeof * newLen))[0 .. newLen];
+                _buffer = (cast(T*)malloc(T.sizeof * newLen))[0 .. newLen];
+                memcpy(_buffer.ptr, _scopeBuffer.ptr, T.sizeof * (_currentLength - n));
             }
         }
         else
@@ -165,10 +166,22 @@ struct ScopedBuffer(T, size_t bytes = 4096)
 }
 
 ///
-//@safe pure nothrow @nogc 
+@safe pure nothrow @nogc 
 unittest
 {
     ScopedBuffer!char buf;
+    buf.put('c');
+    buf.put("str");
+    assert(buf.data == "cstr");
+
+    buf.popBackN(2);
+    assert(buf.data == "cs");
+}
+
+@safe pure nothrow @nogc 
+unittest
+{
+    ScopedBuffer!(char, 3) buf;
     buf.put('c');
     buf.put("str");
     assert(buf.data == "cstr");
